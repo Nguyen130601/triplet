@@ -1,29 +1,11 @@
 import { Formik, Field, Form } from 'formik'
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useSelector, useDispatch } from 'react-redux'
-import { Button, Card, CardBody, CardSubtitle, CardText, CardTitle } from 'reactstrap'
+import { Button, Card, CardBody, CardSubtitle, CardText, CardTitle} from 'reactstrap'
 import { addNewNode, deleteNode, selectNodeById } from '../reducer';
 import { v4 as uuidv4 } from 'uuid'
 //import DeletePopover from '../components/DeletePopover'
-
-
-function displayNotification() {
-  if (Notification.permission === 'granted') {
-      navigator.serviceWorker.getRegistration().then(function(reg) {
-        var options = {
-          body: 'Here is a notification body!',
-          icon: 'images/example.png',
-          vibrate: [100, 50, 100],
-          data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
-          }
-        };
-        reg.showNotification('Hello world!', options);
-      });
-    }
-  }
-
+import socket from '../socket';
 
 const Article = (props) => {
     const dispatch = useDispatch();
@@ -45,19 +27,13 @@ const Article = (props) => {
       return (
         <>
           <Card>
-            <CardBody>
-              <CardTitle>{title}</CardTitle>
-              <CardSubtitle>{user}</CardSubtitle>
-              <CardText>{body}</CardText>
-              <CardText>{votes}</CardText>
-              {renderImages(img)}
-            </CardBody>
             <Formik
                 initialValues={{
                   message: '',
                   file: '',
                 }}
                 onSubmit={(initialValues) => {
+                  socket.emit('notification', {id: localStorage.getItem("sessionID")})
                   console.log(initialValues.file)
                   const childId = uuidv4()
                   dispatch(addNewNode({id: childId, body: initialValues.message, parentId: id, user: 'Guest', title: 'Title', img: initialValues.file}))
@@ -101,10 +77,10 @@ const Article = (props) => {
     } else {
       return (
         <>
-          <h1>this  is comment</h1>
           <Card>
             <CardBody>
               <Button onClick={()=>dispatch(deleteNode({id, parentId, childIds}))}>X</Button>
+              <CardTitle>{title}</CardTitle>
               <CardSubtitle>{user}</CardSubtitle>
               <CardText>{body}</CardText>
               <CardText>{votes}</CardText>
@@ -116,6 +92,7 @@ const Article = (props) => {
                   file: '',
                 }}
                 onSubmit={(initialValues) => {
+                  socket.emit('notification', {message: "ON notification"})
                   console.log(initialValues.file)
                   const childId = uuidv4()
                   dispatch(addNewNode({id: childId, body: initialValues.message, parentId: id, user: 'Guest', title: 'Title', img: initialValues.file}))

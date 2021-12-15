@@ -19,11 +19,13 @@ export const addNewNode = createAsyncThunk('nodes/addNewNode',
 )
 
 export const fetchNodes = createAsyncThunk('nodes/fetchNodes', async () => {
-  let response;
-  await fetch('http://localhost:4000')
-  .then(response => response.json())
-  .then(data => { response = data });
-  return response;
+  return new Promise(
+    (resolve , reject)=>{
+        socket.emit("node:feed")
+            socket.on("node:feed",(result)=>{
+            resolve(result)
+    })
+})
 })
 
 const postsReducer = createSlice({
@@ -57,7 +59,6 @@ const postsReducer = createSlice({
       state.nodes = state.nodes.concat(action.payload)
       action.payload.forEach(element => { 
         const existingNode = state.nodes.find(node =>  element.parentId === node.id)
-        console.log(JSON.stringify(existingNode.childIds))
         existingNode.childIds.push(element.id)
       })
     })

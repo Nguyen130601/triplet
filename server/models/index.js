@@ -14,7 +14,7 @@ const nodeSchema = new Schema({
   img: String
 }, { collection: 'nodes' })
 
-mongoose.connect('mongodb+srv://jvldwin:jvldwin@triplet.mvtfw.mongodb.net/triplet?retryWrites=true&w=majority')
+mongoose.connect(process.env.MONGO_DB)
 
 const Node = mongoose.model('Node', nodeSchema)
 

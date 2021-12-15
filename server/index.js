@@ -1,13 +1,14 @@
 const express = require('express')
-const mongoose = require('mongoose');
-const path = require('path')
+equire('dotenv').config()
 const cors = require('cors')
 const app = express()
 const Busboy = require('busboy')
 const  { Server } = require("socket.io")
 const { createServer } = require("http")
 const { saveNode, nodeList, updateNode, deleteNode } = require('./models');
-const mongodb = require('mongodb')
+const mongodb = require('mongodb');
+const { randomUUID } = require('crypto');
+const { InMemorySessionStore } = require('./sessionStore')
 
 
 app.use(express.json())
@@ -17,13 +18,12 @@ app.use(cors({
 }))
 
 
-const mongoURI = 'mongodb+srv://jvldwin:jvldwin@triplet.mvtfw.mongodb.net/triplet?retryWrites=true&w=majority'
+const mongoURI = process.env.MONGO_DB;
 
 
 
 app.get('/', async (req, res) => {
-    const result = await nodeList();
-    res.send(result);
+    res.send("OK");
 })
 app.post('/upload', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*')
@@ -47,8 +47,6 @@ app.post('/upload', (req, res) => {
                 //process.exit(0);
                 res.send('Done Uploading');
             })   
-
-
       });
       busboy.on('finish', function() {
         console.log("That's all folk")
@@ -75,11 +73,24 @@ const io = new Server(httpServer, {
 })
 
 io.use((socket, next) => {
+    const sessionID = socket.handshake.auth.sessionID
     const username = socket.handshake.auth.username;
+    if (sessionID) {
+        console.log(sessionID)
+        const session = InMemorySessionStore.findSession(sessionID);
+        if (session) {
+            socket.sessionID = sessionID;
+            socket.userID = session.userID;
+            socket.username = session.username;
+            return next();
+        }
+    }
     if (!username) {
       return next(new Error("invalid username"));
     }
     socket.username = username;
+    socket.userID = randomUUID()
+    socket.sessionID = randomUUID()
     next();
 })
 
@@ -87,12 +98,16 @@ io.on("connection", (socket) => {
     console.log('SERVER CONNECTED')
     const users = [];
     for (let [id, socket] of io.of("/").sockets) {
-        users.push({
-        userID: id,
-        username: socket.username,
+            users.push ({
+                userID: id,
+                username: socket.username,
         });
     }
-    socket.emit("users", users);
+    socket.emit("users", users)
+    socket.on("users", () => {
+        console.log('FETCH USERS' + JSON.stringify(users))
+        socket.emit("users", users);
+    })
     socket.on('node:create', async (msg) => {
         console.log(msg);
         socket.emit('node:create', msg)
@@ -117,6 +132,13 @@ io.on("connection", (socket) => {
     socket.on('node:delete', (msg) => {
         deleteNode(msg)
     })
+    socket.on('notification', (msg) => {
+        socket.broadcast.emit('notification', msg)
+    })
+    socket.emit("session", {
+        sessionID: socket.sessionID,
+        userID: socket.userID,
+    });
 });
 
 
